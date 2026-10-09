@@ -11,6 +11,7 @@ installation, it works offline.
 - Two presets:
   - **Rounded card**: a white card with subtly rounded corners on a transparent or black canvas.
   - **Classic square**: a plain QR code with its white margin.
+- The rounded card can have a black rounded outline or no outline.
 - Square modules and finder patterns. A solid white quiet zone of at least 4 modules always surrounds the code.
 - PNG at 512, 1024 or 2048 px, with optional 300 / 600 PPI metadata.
 - True-vector SVG with named, editable layers.
@@ -104,11 +105,16 @@ long links or for scanning at a distance.
 ## Use as a library
 
 ```python
-from linkpress_qr import Preset, OuterBackground, build, render_png, render_svg
+from linkpress_qr import CardBorder, Preset, OuterBackground, build, render_png, render_svg
 
 matrix = build("https://example.com/tickets")  # validates, then encodes (level M)
 png = render_png(
-    matrix, preset=Preset.ROUNDED, outer_background=OuterBackground.BLACK, size=2048, ppi=300
+    matrix,
+    preset=Preset.ROUNDED,
+    outer_background=OuterBackground.BLACK,
+    card_border=CardBorder.BLACK,
+    size=2048,
+    ppi=300,
 )
 svg = render_svg(matrix, preset=Preset.SQUARE)
 ```

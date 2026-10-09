@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from linkpress_qr.app import MAX_BODY_BYTES
+from linkpress_qr.layout import CardBorder
 from linkpress_qr.qr import build
 from linkpress_qr.render import render_svg
 
@@ -40,6 +41,24 @@ def test_generate_returns_exact_destination(client: TestClient, url: str) -> Non
     assert body["error_correction"] == "M"
     assert body["modules"] == 17 + 4 * body["version"]
     assert body["svg"] == render_svg(build(url))
+
+
+def test_generate_and_export_support_black_card_border(client: TestClient) -> None:
+    settings = {
+        "url": TRICKY_URLS[0],
+        "preset": "rounded",
+        "card_border": CardBorder.BLACK,
+    }
+    generated = client.post("/api/generate", json=settings).json()
+    assert 'stroke="#000000" stroke-width="1"' in generated["svg"]
+    assert generated["card_border"] == "black"
+
+    exported = client.post("/api/export/svg", json=settings)
+    assert exported.status_code == 200
+    assert exported.headers["content-disposition"].endswith(
+        '-rounded-transparent-black-border.svg"'
+    )
+    assert exported.text == generated["svg"]
 
 
 def test_generate_invalid_url(client: TestClient) -> None:

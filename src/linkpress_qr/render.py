@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw
 from .layout import (
     PNG_SIZES,
     PPI_OPTIONS,
+    CardBorder,
     Layout,
     OuterBackground,
     Preset,
@@ -73,11 +74,12 @@ def render_png_image(
     *,
     preset: Preset = Preset.ROUNDED,
     outer_background: OuterBackground = OuterBackground.TRANSPARENT,
+    card_border: CardBorder = CardBorder.NONE,
     size: int = 1024,
 ) -> Image.Image:
     if size not in PNG_SIZES:
         raise ValueError(f"PNG size must be one of {PNG_SIZES}")
-    layout = make_layout(matrix.size, preset, outer_background)
+    layout = make_layout(matrix.size, preset, outer_background, card_border)
     place = place_on_canvas(layout, size)
 
     if layout.card is None:
@@ -94,6 +96,14 @@ def render_png_image(
         card_px = place.px(layout.card.x + layout.card.size) - x0
         mask = _card_mask(card_px, layout.card_radius * place.scale)
         image.paste(Image.new(image.mode, (card_px, card_px), WHITE), (x0, x0), mask)
+        if card_border is CardBorder.BLACK:
+            draw = ImageDraw.Draw(image)
+            draw.rounded_rectangle(
+                (x0, x0, x0 + card_px - 1, x0 + card_px - 1),
+                radius=round(layout.card_radius * place.scale),
+                outline=BLACK,
+                width=place.scale,
+            )
 
     # Protected area (symbol + quiet zone) is drawn fully opaque white explicitly.
     p0 = place.px(layout.protected.x)
@@ -114,13 +124,16 @@ def render_png(
     *,
     preset: Preset = Preset.ROUNDED,
     outer_background: OuterBackground = OuterBackground.TRANSPARENT,
+    card_border: CardBorder = CardBorder.NONE,
     size: int = 1024,
     ppi: int | None = None,
 ) -> bytes:
     """Render a PNG. ``ppi`` (300 or 600) is stored as pixel-density metadata."""
     if ppi is not None and ppi not in PPI_OPTIONS:
         raise ValueError(f"PPI must be one of {PPI_OPTIONS}")
-    image = render_png_image(matrix, preset=preset, outer_background=outer_background, size=size)
+    image = render_png_image(
+        matrix, preset=preset, outer_background=outer_background, card_border=card_border, size=size
+    )
     buf = io.BytesIO()
     params: dict[str, object] = {}
     if ppi is not None:
@@ -150,9 +163,10 @@ def render_svg(
     *,
     preset: Preset = Preset.ROUNDED,
     outer_background: OuterBackground = OuterBackground.TRANSPARENT,
+    card_border: CardBorder = CardBorder.NONE,
 ) -> str:
     """Render a self-contained vector SVG (one ``viewBox`` unit = one module)."""
-    layout = make_layout(matrix.size, preset, outer_background)
+    layout = make_layout(matrix.size, preset, outer_background, card_border)
     t = layout.total
     px = t * SVG_PIXELS_PER_MODULE
     pr = layout.protected
@@ -171,9 +185,10 @@ def render_svg(
             )
         c = layout.card
         r = _n(layout.card_radius)
+        border = "" if card_border is CardBorder.NONE else ' stroke="#000000" stroke-width="1"'
         lines.append(
             f'<g id="card"><rect x="{_n(c.x)}" y="{_n(c.y)}" width="{_n(c.size)}" '
-            f'height="{_n(c.size)}" rx="{r}" ry="{r}" fill="#ffffff"/></g>'
+            f'height="{_n(c.size)}" rx="{r}" ry="{r}" fill="#ffffff"{border}/></g>'
         )
     lines += [
         '<g id="qr-code">',

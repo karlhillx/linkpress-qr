@@ -11,6 +11,7 @@ from PIL import Image
 from linkpress_qr.layout import (
     PNG_SIZES,
     QUIET_ZONE,
+    CardBorder,
     OuterBackground,
     Preset,
     make_layout,
@@ -126,6 +127,24 @@ def test_rounded_black_and_square_are_opaque() -> None:
     square = render_png_image(matrix, preset=Preset.SQUARE, size=512)
     assert square.mode == "RGB"
     assert square.getpixel((0, 0)) == (255, 255, 255)
+
+
+def test_black_card_border_is_rendered_in_png_and_svg() -> None:
+    matrix = build(TRICKY_URLS[0])
+    layout = make_layout(matrix.size, card_border=CardBorder.BLACK)
+    assert layout.card is not None
+
+    image = render_png_image(matrix, card_border=CardBorder.BLACK, size=512)
+    place = place_on_canvas(layout, 512)
+    card_edge = place.px(layout.card.x)
+    assert image.getpixel((card_edge, image.height // 2))[:3] == (0, 0, 0)
+
+    svg = render_svg(matrix, card_border=CardBorder.BLACK)
+    root = ET.fromstring(svg)
+    card = root.find(f".//{SVG_NS}g[@id='card']/{SVG_NS}rect")
+    assert card is not None
+    assert card.attrib["stroke"] == "#000000"
+    assert card.attrib["stroke-width"] == "1"
 
 
 def test_card_corner_radius_stays_outside_protected_area() -> None:

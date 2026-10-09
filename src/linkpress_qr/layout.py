@@ -37,6 +37,11 @@ class OuterBackground(StrEnum):
     BLACK = "black"
 
 
+class CardBorder(StrEnum):
+    NONE = "none"
+    BLACK = "black"
+
+
 @dataclass(frozen=True, slots=True)
 class Rect:
     x: float
@@ -50,6 +55,7 @@ class Layout:
 
     preset: Preset
     outer_background: OuterBackground
+    card_border: CardBorder
     symbol_size: int
     total: int
     card: Rect | None
@@ -67,12 +73,14 @@ def make_layout(
     symbol_size: int,
     preset: Preset = Preset.ROUNDED,
     outer_background: OuterBackground = OuterBackground.TRANSPARENT,
+    card_border: CardBorder = CardBorder.NONE,
 ) -> Layout:
     protected_size = symbol_size + 2 * QUIET_ZONE
     if preset is Preset.SQUARE:
         return Layout(
             preset=preset,
             outer_background=outer_background,
+            card_border=card_border,
             symbol_size=symbol_size,
             total=protected_size,
             card=None,
@@ -88,6 +96,7 @@ def make_layout(
     return Layout(
         preset=preset,
         outer_background=outer_background,
+        card_border=card_border,
         symbol_size=symbol_size,
         total=total,
         card=Rect(card_origin, card_origin, card_size),

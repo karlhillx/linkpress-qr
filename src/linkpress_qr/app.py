@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import __version__
-from .layout import PNG_SIZES, PPI_OPTIONS, OuterBackground, Preset
+from .layout import PNG_SIZES, PPI_OPTIONS, CardBorder, OuterBackground, Preset
 from .qr import QRCapacityError, QRMatrix, build
 from .render import render_png, render_svg
 from .urls import InvalidURLError, filename_stem
@@ -87,6 +87,7 @@ class GenerateRequest(BaseModel):
     url: Annotated[str, Field(max_length=MAX_URL_FIELD_CHARS)]
     preset: Preset = Preset.ROUNDED
     outer_background: OuterBackground = OuterBackground.TRANSPARENT
+    card_border: CardBorder = CardBorder.NONE
 
 
 class PngExportRequest(GenerateRequest):
@@ -102,6 +103,7 @@ class GenerateResponse(BaseModel):
     modules: int
     preset: Preset
     outer_background: OuterBackground
+    card_border: CardBorder
     svg: str
 
 
@@ -135,8 +137,11 @@ def _download(content: bytes, media_type: str, filename: str, matrix: QRMatrix) 
     )
 
 
-def _variant(preset: Preset, outer: OuterBackground) -> str:
-    return "square" if preset is Preset.SQUARE else f"rounded-{outer.value}"
+def _variant(preset: Preset, outer: OuterBackground, border: CardBorder) -> str:
+    variant = "square" if preset is Preset.SQUARE else f"rounded-{outer.value}"
+    if preset is Preset.SQUARE or border is CardBorder.NONE:
+        return variant
+    return f"{variant}-black-border"
 
 
 def create_app() -> FastAPI:
@@ -168,7 +173,7 @@ def create_app() -> FastAPI:
             message = "That link is far too long to fit in a QR code."
         elif field == "url":
             message = "Paste a link to generate a QR code."
-        elif field in ("preset", "outer_background"):
+        elif field in ("preset", "outer_background", "card_border"):
             message = "Choose a presentation preset from the options shown."
         elif field in ("size", "ppi"):
             message = "Choose an export option from the options shown."
@@ -206,7 +211,13 @@ def create_app() -> FastAPI:
             modules=result.size,
             preset=req.preset,
             outer_background=req.outer_background,
-            svg=render_svg(result, preset=req.preset, outer_background=req.outer_background),
+            card_border=req.card_border,
+            svg=render_svg(
+                result,
+                preset=req.preset,
+                outer_background=req.outer_background,
+                card_border=req.card_border,
+            ),
         )
 
     @app.post("/api/export/png")
@@ -223,13 +234,15 @@ def create_app() -> FastAPI:
             result,
             preset=req.preset,
             outer_background=req.outer_background,
+            card_border=req.card_border,
             size=req.size,
             ppi=req.ppi,
         )
         ppi_part = f"-{req.ppi}ppi" if req.ppi else ""
         name = (
             f"linkpress-qr-{filename_stem(result.data)}-"
-            f"{_variant(req.preset, req.outer_background)}-{req.size}px{ppi_part}.png"
+            f"{_variant(req.preset, req.outer_background, req.card_border)}-"
+            f"{req.size}px{ppi_part}.png"
         )
         return _download(png, "image/png", name, result)
 
@@ -238,10 +251,15 @@ def create_app() -> FastAPI:
         result = _encode_or_error(req.url)
         if isinstance(result, JSONResponse):
             return result
-        svg = render_svg(result, preset=req.preset, outer_background=req.outer_background)
+        svg = render_svg(
+            result,
+            preset=req.preset,
+            outer_background=req.outer_background,
+            card_border=req.card_border,
+        )
         name = (
             f"linkpress-qr-{filename_stem(result.data)}-"
-            f"{_variant(req.preset, req.outer_background)}.svg"
+            f"{_variant(req.preset, req.outer_background, req.card_border)}.svg"
         )
         return _download(svg.encode("utf-8"), "image/svg+xml", name, result)
 

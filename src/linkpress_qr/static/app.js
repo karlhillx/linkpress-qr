@@ -9,6 +9,7 @@
   const generateBtn = $("generate-btn");
   const resetBtn = $("reset-btn");
   const outerField = $("outer-field");
+  const borderField = $("border-field");
   const resultPanel = $("result-panel");
   const stage = $("stage");
   const stageEmpty = $("stage-empty");
@@ -39,13 +40,16 @@
       url: urlInput.value.trim(),
       preset: radioValue("preset"),
       outer_background: radioValue("outer_background"),
+      card_border: radioValue("card_border"),
     };
   }
 
   function sameDesign(a, b) {
     if (a.url !== b.url || a.preset !== b.preset) return false;
     // The outer canvas option only applies to the rounded card.
-    return a.preset === "square" || a.outer_background === b.outer_background;
+    return a.preset === "square" || (
+      a.outer_background === b.outer_background && a.card_border === b.card_border
+    );
   }
 
   function isStale() {
@@ -73,6 +77,8 @@
     const square = radioValue("preset") === "square";
     outerField.hidden = square;
     outerField.disabled = square;
+    borderField.hidden = square;
+    borderField.disabled = square;
   }
 
   function syncDownloads() {
@@ -130,7 +136,8 @@
       ? "Classic square"
       : `Rounded card, ${data.outer_background} outside`;
     metaEl.textContent =
-      `${style} · QR version ${data.version} (${data.modules} × ${data.modules} modules) · ` +
+      `${style}, ${data.card_border === "black" ? "black border" : "no border"} · ` +
+      `QR version ${data.version} (${data.modules} × ${data.modules} modules) · ` +
       `error correction ${data.error_correction}`;
     details.hidden = false;
     syncDownloads();
@@ -216,6 +223,7 @@
       url: settings.url,
       preset: settings.preset,
       outer_background: settings.outer_background,
+      card_border: settings.card_border,
     };
     if (kind === "png") {
       payload.size = Number(radioValue("png_size") || DEFAULT_SIZE);
